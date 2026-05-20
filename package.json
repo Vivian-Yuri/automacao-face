@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server/index.js",
     "start:fresh": "node scripts/free-port.mjs && node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "check:supabase": "node scripts/check-supabase.mjs"
   },
   "engines": {
     "node": ">=18"

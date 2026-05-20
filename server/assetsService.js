@@ -1,7 +1,36 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getSupabase, isSupabaseConfigured } from "./supabaseClient.js";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  validateSupabaseEnv,
+} from "./supabaseClient.js";
+
+/** @param {{ message?: string, code?: string, details?: string }} error */
+function explainSupabaseError(error) {
+  const msg = String(error?.message || "");
+  const code = String(error?.code || "");
+  if (msg.includes("Invalid path specified in request URL")) {
+    return [
+      "URL do Supabase incorreta no arquivo .env.",
+      "Use apenas o Project URL: https://SEU_ID.supabase.co (sem barra no final, sem /rest/v1).",
+      "Copie em: Supabase → Project Settings → API → Project URL.",
+    ].join(" ");
+  }
+  if (
+    code === "42P01" ||
+    msg.includes("meta_saved_items") ||
+    msg.includes("does not exist") ||
+    msg.includes("schema cache")
+  ) {
+    return [
+      "Tabela meta_saved_items não existe no Supabase.",
+      "Abra SQL Editor e execute o arquivo supabase/schema.sql do projeto.",
+    ].join(" ");
+  }
+  return msg || "Erro ao acessar o Supabase.";
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -70,7 +99,7 @@ export async function listAssets(kind) {
       .order("name", { ascending: true });
     if (kind) query = query.eq("kind", kind);
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(explainSupabaseError(error));
     return (data || []).map(normalizeRow);
   }
   const all = readFileStore();
@@ -97,7 +126,7 @@ export async function createAsset(payload) {
       if (error.code === "23505") {
         throw new Error("Já existe um item com este ID nesta categoria.");
       }
-      throw new Error(error.message);
+      throw new Error(explainSupabaseError(error));
     }
     return normalizeRow(data);
   }
@@ -149,7 +178,7 @@ export async function updateAsset(id, patch) {
       if (error.code === "23505") {
         throw new Error("Já existe um item com este ID nesta categoria.");
       }
-      throw new Error(error.message);
+      throw new Error(explainSupabaseError(error));
     }
     if (!data) throw new Error("Registro não encontrado.");
     return normalizeRow(data);
@@ -195,7 +224,7 @@ export async function deleteAsset(id) {
       .eq("id", assetId)
       .select("id")
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(explainSupabaseError(error));
     if (!data) throw new Error("Registro não encontrado.");
     return { id: assetId };
   }
@@ -205,4 +234,18 @@ export async function deleteAsset(id) {
   if (next.length === items.length) throw new Error("Registro não encontrado.");
   writeFileStore(next);
   return { id: assetId };
+}
+
+/** Testa conexão com Supabase (tabela + credenciais). */
+export async function probeSupabaseConnection() {
+  const validation = validateSupabaseEnv();
+  if (!validation.ok) {
+    return { ok: false, issues: validation.issues };
+  }
+  const supabase = getSupabase();
+  const { error } = await supabase.from("meta_saved_items").select("id").limit(1);
+  if (error) {
+    return { ok: false, issues: [explainSupabaseError(error)] };
+  }
+  return { ok: true, issues: [] };
 }

@@ -18,7 +18,9 @@ import {
   deleteAsset,
   assertValidKind,
   getAssetsStorageMode,
+  probeSupabaseConnection,
 } from "./assetsService.js";
+import { validateSupabaseEnv } from "./supabaseClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -140,11 +142,24 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mdm-ads-dashboard" });
 });
 
-app.get("/api/assets/status", (_req, res) => {
+app.get("/api/assets/status", async (_req, res) => {
+  const validation = validateSupabaseEnv();
+  const storage = getAssetsStorageMode();
+  let connection = null;
+  if (storage === "supabase") {
+    connection = await probeSupabaseConnection();
+  }
   res.json({
     ok: true,
-    storage: getAssetsStorageMode(),
-    supabaseConfigured: getAssetsStorageMode() === "supabase",
+    storage,
+    supabaseConfigured: storage === "supabase",
+    envFileHint:
+      "Crie o arquivo .env na raiz do projeto (copie de .env.example) e reinicie npm run start:fresh.",
+    validation: {
+      ok: validation.ok,
+      issues: validation.issues,
+    },
+    connection,
   });
 });
 

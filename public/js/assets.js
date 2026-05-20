@@ -244,12 +244,27 @@ export function initCadastrosPanel(panel) {
   async function refreshStatus() {
     try {
       const data = await fetchAssetsStatus();
-      if (statusEl) {
-        statusEl.textContent =
-          data.supabaseConfigured
-            ? "Armazenamento: Supabase (lista compartilhada entre todos que usam este servidor)."
-            : "Armazenamento: arquivo local (data/meta-assets.json). Configure SUPABASE_URL no .env para compartilhar no Render.";
+      if (!statusEl) return;
+      const lines = [];
+      if (data.supabaseConfigured && data.connection?.ok) {
+        lines.push(
+          "Armazenamento: Supabase — lista remota compartilhada (Render, proxies, etc.)."
+        );
+      } else if (data.supabaseConfigured && data.connection && !data.connection.ok) {
+        lines.push("Supabase configurado no .env, mas a conexão falhou:");
+        (data.connection.issues || []).forEach((i) => lines.push(`• ${i}`));
+      } else {
+        lines.push(
+          "Armazenamento: arquivo local (data/meta-assets.json) — só nesta máquina."
+        );
+        lines.push(data.envFileHint || "Crie o arquivo .env e reinicie o servidor.");
+        const issues = data.validation?.issues || [];
+        if (issues.length) {
+          lines.push("Falta configurar:");
+          issues.forEach((i) => lines.push(`• ${i}`));
+        }
       }
+      statusEl.textContent = lines.join("\n");
     } catch (err) {
       if (statusEl) {
         statusEl.textContent =

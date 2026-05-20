@@ -569,6 +569,10 @@ textarea {
   font-size: 0.8rem;
 }
 
+#cadastros-storage-status {
+  white-space: pre-line;
+}
+
 .cadastros-flash.ok {
   color: var(--ok);
 }
