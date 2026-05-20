@@ -2,6 +2,10 @@ import axios from "axios";
 import FormData from "form-data";
 import fs from "fs";
 import path from "path";
+import {
+  getMetaCurrencyOffset,
+  budgetInputHintPt,
+} from "./currencyOffsets.js";
 
 const GRAPH_VERSION = "v23.0";
 const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -36,12 +40,27 @@ export function adAccountCurrencyLabelPt(code) {
   return map[c] || (c ? `Moeda da conta: ${c}` : "");
 }
 
-function toMinorUnits(amountStr, label = "Orçamento diário") {
+/**
+ * Converte valor digitado pelo usuário para unidades exigidas pela Meta (daily_budget).
+ * @param {string} amountStr
+ * @param {string} currencyCode Moeda da conta (ex.: BRL, COP)
+ * @param {string} label
+ */
+export function toMetaBudgetUnits(
+  amountStr,
+  currencyCode,
+  label = "Orçamento diário"
+) {
   const n = Number(String(amountStr).replace(",", "."));
   if (!Number.isFinite(n) || n <= 0) {
     throw new Error(`${label} inválido.`);
   }
-  return Math.round(n * 100);
+  const offset = getMetaCurrencyOffset(currencyCode);
+  const units = Math.round(n * offset);
+  if (units < 1) {
+    throw new Error(`${label} muito baixo para a moeda ${currencyCode}.`);
+  }
+  return units;
 }
 
 function objectiveMapping(campaignType) {
@@ -87,11 +106,30 @@ function objectiveMapping(campaignType) {
 function startTimeUnix(isoOrUnix) {
   if (!isoOrUnix) return null;
   const s = String(isoOrUnix).trim();
-  if (/^\d+$/.test(s)) return Number(s);
+  if (/^\d{10,13}$/.test(s)) {
+    const n = Number(s);
+    return n > 1e12 ? Math.floor(n / 1000) : n;
+  }
+  const local = s.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/
+  );
+  if (local) {
+    const y = Number(local[1]);
+    const mo = Number(local[2]) - 1;
+    const d = Number(local[3]);
+    const h = Number(local[4]);
+    const mi = Number(local[5]);
+    const sec = Number(local[6] || 0);
+    const ms = new Date(y, mo, d, h, mi, sec, 0).getTime();
+    if (Number.isNaN(ms)) {
+      throw new Error("Data/hora de início inválida.");
+    }
+    return Math.floor(ms / 1000);
+  }
   const ms = Date.parse(s);
   if (Number.isNaN(ms)) {
     throw new Error(
-      "Data/hora de início inválida. Use o seletor do formulário ou timestamp Unix."
+      "Data/hora de início inválida. Use o seletor do formulário."
     );
   }
   return Math.floor(ms / 1000);
@@ -287,10 +325,13 @@ export async function fetchAdAccountInfo({ accessToken, adAccountId }) {
       "[Meta conta] A Meta não devolveu a moeda da conta. Use o ID da conta de anúncios (act_… ou só números), não um ID só do Gerenciador de Negócios. Confira também permissões no token (ex.: ads_management / ads_read) para essa conta."
     );
   }
+  const currencyOffset = getMetaCurrencyOffset(currency);
   return {
     name: String(data.name || "").trim(),
     currency,
+    currencyOffset,
     currencyLabelPt: adAccountCurrencyLabelPt(currency),
+    budgetInputHintPt: budgetInputHintPt(currency),
     accountStatus: String(data.account_status || "").trim(),
   };
 }
@@ -968,11 +1009,21 @@ export async function runFacebookCampaignJob(body, videoFiles) {
 
   if (!videoFiles?.length) throw new Error("Envie ao menos um vídeo.");
 
+  const accountInfo = await fetchAdAccountInfo({
+    accessToken,
+    adAccountId,
+  });
+  const accountCurrency = accountInfo.currency;
+
   const st = startTimeUnix(startAt);
   const level = parseBudgetLevel(budgetLevel);
   const useCampaignBudget = level === "campaign";
   const campaignBudgetMinor = useCampaignBudget
-    ? toMinorUnits(dailyBudgetCampaign, "Orçamento diário da campanha (CBO)")
+    ? toMetaBudgetUnits(
+        dailyBudgetCampaign,
+        accountCurrency,
+        "Orçamento diário da campanha (CBO)"
+      )
     : null;
   const adsetBudgetSharingBool = parseFormBool(adSetBudgetSharing, false);
   const dsaBen = String(dsaBeneficiary ?? "").trim();
@@ -1050,8 +1101,9 @@ export async function runFacebookCampaignJob(body, videoFiles) {
     }
     const adsetBudgetMinor = useCampaignBudget
       ? undefined
-      : toMinorUnits(
+      : toMetaBudgetUnits(
           setCfg?.dailyBudget,
+          accountCurrency,
           `Orçamento diário do conjunto "${setName}" (ABO)`
         );
     const selectedInterests = Array.isArray(setCfg?.selectedInterests)

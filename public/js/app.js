@@ -99,11 +99,16 @@ async function runAdAccountCurrencyFetch() {
     }
     const nome = String(data.name || "").trim();
     const label = String(data.currencyLabelPt || "").trim();
-    const line = nome
-      ? `Conta «${nome}»: orçamentos neste formulário são em ${label}.`
-      : `Orçamentos neste formulário são em ${label}.`;
+    const budgetHint = String(data.budgetInputHintPt || "").trim();
+    const parts = [];
+    parts.push(
+      nome
+        ? `Conta «${nome}»: orçamentos em ${label}.`
+        : `Orçamentos em ${label}.`
+    );
+    if (budgetHint) parts.push(budgetHint);
     adAccountCurrencyHint.hidden = false;
-    adAccountCurrencyHint.textContent = line;
+    adAccountCurrencyHint.textContent = parts.join(" ");
   } catch {
     adAccountCurrencyHint.hidden = false;
     adAccountCurrencyHint.textContent =
@@ -621,6 +626,29 @@ document.querySelectorAll(".entity-picker-wrap").forEach((wrap) => {
 const cadastrosPanel = document.getElementById("panel-cadastros");
 if (cadastrosPanel) initCadastrosPanel(cadastrosPanel);
 
+/** Converte datetime-local do navegador para Unix (horário local do usuário). */
+function datetimeLocalToUnixSeconds(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+  if (/^\d{10,13}$/.test(s)) {
+    const n = Number(s);
+    return String(n > 1e12 ? Math.floor(n / 1000) : n);
+  }
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return null;
+  const ms = new Date(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6] || 0),
+    0
+  ).getTime();
+  if (Number.isNaN(ms)) return null;
+  return String(Math.floor(ms / 1000));
+}
+
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   resultEl.hidden = true;
@@ -644,6 +672,18 @@ form?.addEventListener("submit", async (e) => {
 
   try {
     const fd = new FormData(form);
+    const startAtRaw = form.querySelector('[name="startAt"]')?.value?.trim();
+    if (startAtRaw) {
+      const startUnix = datetimeLocalToUnixSeconds(startAtRaw);
+      if (!startUnix) {
+        setResult(
+          "Data/hora de início inválida. Use o seletor de data e hora do formulário.",
+          "err"
+        );
+        return;
+      }
+      fd.set("startAt", startUnix);
+    }
     const isAbo = budgetLevelEl?.value === "adset";
     const cards = Array.from(
       aboSetsContainer?.querySelectorAll(".abo-set-card") || []
