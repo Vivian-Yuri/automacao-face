@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MDM — Central de mídia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">MDM</span>
+          <div class="brand-text">
+            <h1>MDM</h1>
+            <p>Central de automação de mídia</p>
+          </div>
+        </div>
+        <nav class="platform-nav" aria-label="Plataformas">
+          <button
+            type="button"
+            class="nav-btn is-active"
+            data-platform="meta"
+            aria-current="page"
+          >
+            <span class="nav-icon meta" aria-hidden="true"></span>
+            Meta / Facebook
+          </button>
+          <button type="button" class="nav-btn" data-platform="cadastros">
+            Cadastros
+          </button>
+        </nav>
+      </header>
+
+      <main>
+        <section id="panel-meta" class="panel is-visible">
+          <div class="panel-head">
+            <h2>Automação Facebook / Instagram</h2>
+            <p class="muted">
+              Preencha API e conta, envie os vídeos e defina textos e orçamento.
+              Será criada uma campanha <strong>pausada</strong> (para você conferir antes de
+              ligar). Conjuntos e anúncios ficam <strong>ativos</strong> dentro da conta; para
+              veicular, basta ativar a campanha no Gerenciador.
+            </p>
+          </div>
+
+          <form id="fb-form" class="form-grid">
+            <fieldset class="card">
+              <legend>Conta e API</legend>
+              <label class="field">
+                <span>Token de acesso</span>
+                <input
+                  name="accessToken"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="EAAB…"
+                  required
+                />
+              </label>
+              <label class="field entity-picker-wrap">
+                <span>ID da conta de anúncios (gerenciador)</span>
+                <input
+                  name="adAccountId"
+                  type="text"
+                  placeholder="Clique para ver cadastros ou digite act_…"
+                  required
+                  autocomplete="off"
+                />
+                <div class="entity-picker-results abo-interest-results" hidden></div>
+                <span class="fine muted"
+                  >No Gerenciador: menu “Todas as ferramentas” → “Contas de
+                  anúncios” → ID da conta. Cadastre nomes em «Cadastros».</span
+                >
+              </label>
+              <label class="field entity-picker-wrap">
+                <span>ID da página do Facebook</span>
+                <input
+                  name="pageId"
+                  type="text"
+                  placeholder="Clique para ver cadastros ou digite o ID"
+                  required
+                  autocomplete="off"
+                />
+                <div class="entity-picker-results abo-interest-results" hidden></div>
+              </label>
+              <label class="field">
+                <span>Quem está sendo promovido (beneficiário)</span>
+                <input
+                  name="dsaBeneficiary"
+                  type="text"
+                  placeholder="Ex.: nome da marca ou cliente anunciado"
+                  required
+                />
+                <span class="fine muted"
+                  >Obrigatório para transparência (DSA / UE e políticas globais). Texto exibido na
+                  divulgação de quem o anúncio promove.
+                  <a
+                    href="https://www.facebook.com/business/help/605021638170961/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Ajuda Meta</a
+                  ></span
+                >
+              </label>
+              <label class="field">
+                <span>Quem paga o anúncio (pagador) — opcional</span>
+                <input
+                  name="dsaPayor"
+                  type="text"
+                  placeholder="Em branco = mesmo que beneficiário (ex.: MDM ou o anunciante)"
+                />
+              </label>
+            </fieldset>
+
+            <fieldset class="card">
+              <legend>Configuração da campanha</legend>
+              <label class="field">
+                <span>Nome da campanha</span>
+                <input name="campaignName" type="text" required />
+              </label>
+              <label class="field">
+                <span>Tipo de campanha</span>
+                <select name="campaignType" required>
+                  <option value="TRAFEGO">Tráfego — cliques no link</option>
+                  <option value="VENDAS" selected>
+                    Vendas — conversões no site (pixel)
+                  </option>
+                  <option value="LEADS">Leads — conversões / lead (pixel)</option>
+                  <option value="RECONHECIMENTO">Reconhecimento — alcance</option>
+                  <option value="ENGAJAMENTO">Engajamento — post</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Onde aplicar o orçamento diário</span>
+                <select name="budgetLevel" id="budget-level" required>
+                  <option value="campaign" selected>
+                    Na campanha (CBO — Advantage / orçamento da campanha)
+                  </option>
+                  <option value="adset">
+                    No conjunto de anúncios (ABO — orçamento por conjunto)
+                  </option>
+                </select>
+                <span class="fine muted"
+                  >CBO: um orçamento total na campanha; ABO: o valor fica só neste
+                  conjunto.</span
+                >
+              </label>
+              <label class="field" id="campaign-budget-wrap">
+                <span>Orçamento diário da campanha (CBO)</span>
+                <input
+                  name="dailyBudgetCampaign"
+                  id="daily-budget-campaign"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  placeholder="50"
+                />
+              </label>
+              <p
+                id="ad-account-currency-hint"
+                class="fine muted ad-account-currency-hint"
+                hidden
+                role="status"
+              ></p>
+              <div class="row tall">
+                <label class="field">
+                  <span>País (ISO 2 letras)</span>
+                  <input
+                    id="country-iso-input"
+                    name="country"
+                    type="text"
+                    maxlength="2"
+                    value="BR"
+                    required
+                  />
+                  <span id="country-iso-expanded" class="fine muted"></span>
+                </label>
+                <label class="field entity-picker-wrap">
+                  <span>Pixel (obrigatório para Vendas / Leads)</span>
+                  <input
+                    name="pixelId"
+                    type="text"
+                    placeholder="Clique para ver cadastros ou digite o ID"
+                    autocomplete="off"
+                  />
+                  <div class="entity-picker-results abo-interest-results" hidden></div>
+                </label>
+              </div>
+              <label class="field">
+                <span>Início do conjunto (data e hora local — opcional)</span>
+                <input name="startAt" type="datetime-local" />
+                <span class="fine muted"
+                  >Se ficar em branco, a Meta usa o agendamento padrão da conta.</span
+                >
+              </label>
+              <div class="row tall">
+                <label class="field">
+                  <span>Idade mínima do público</span>
+                  <input name="ageMin" type="number" min="13" max="65" placeholder="18" />
+                </label>
+                <label class="field">
+                  <span>Idade máxima do público</span>
+                  <input name="ageMax" type="number" min="13" max="65" placeholder="65" />
+                </label>
+              </div>
+              <p class="fine muted budget-hint budget-hint-campaign">
+                Em <strong>CBO</strong>, você define o orçamento no nível da campanha
+                e pode criar múltiplos conjuntos com segmentações diferentes.
+              </p>
+              <p class="fine muted budget-hint budget-hint-adset" hidden>
+                Em <strong>ABO</strong>, o orçamento é definido dentro de cada conjunto.
+              </p>
+            </fieldset>
+
+            <fieldset class="card">
+              <legend>Personalizar conjuntos</legend>
+              <div class="field">
+                <span>Conjuntos (vale para CBO e ABO)</span>
+                <div id="abosets-container" class="adset-groups"></div>
+                <div class="actions-inline">
+                  <button type="button" class="btn ghost" id="add-aboset-btn">
+                    + Adicionar conjunto
+                  </button>
+                </div>
+                <span class="fine muted"
+                  >Cada conjunto tem nome, direcionamento detalhado e vídeos próprios.</span
+                >
+              </div>
+              <div id="adset-budget-fields" class="adset-budget-fields" hidden>
+                <label class="field">
+                  <span>Compartilhar até ~20% do orçamento entre conjuntos</span>
+                  <select name="adSetBudgetSharing">
+                    <option value="false" selected>Não</option>
+                    <option value="true">Sim</option>
+                  </select>
+                  <span class="fine muted"
+                    >Campo exigido pela Meta no modo ABO (<code
+                      >is_adset_budget_sharing_enabled</code
+                    >).</span
+                  >
+                </label>
+              </div>
+              <p class="fine muted bid-strategy-note" id="bid-strategy-note" hidden>
+                Com ABO, cada conjunto usa orçamento próprio com estratégia de maior volume.
+              </p>
+            </fieldset>
+
+            <fieldset class="card">
+              <legend>Criativos e textos</legend>
+              <label class="field">
+                <span>Título principal (texto maior / corpo)</span>
+                <textarea
+                  name="primaryTitle"
+                  rows="3"
+                  placeholder="Texto principal que aparece com o vídeo"
+                  required
+                ></textarea>
+              </label>
+              <label class="field">
+                <span>Título normal / headline (linha menor em destaque)</span>
+                <input
+                  name="secondaryTitle"
+                  type="text"
+                  placeholder="Headline curta"
+                  required
+                />
+              </label>
+              <label class="field">
+                <span>URL de destino (CTA “Saiba mais”)</span>
+                <input
+                  name="linkUrl"
+                  type="url"
+                  placeholder="https://seusite.com/landing"
+                  required
+                />
+              </label>
+              <label class="field">
+                <span>Anúncios com vários anunciantes (multi-advertiser)</span>
+                <select name="multiAdvertiserAds" required>
+                  <option value="OPT_IN">
+                    Sim — participar (OPT_IN)
+                  </option>
+                  <option value="OPT_OUT" selected>
+                    Não — excluir (OPT_OUT)
+                  </option>
+                </select>
+                <span class="fine muted"
+                  >Controla se o criativo pode aparecer em formatos onde a Meta
+                  agrupa anúncios de mais de um anunciante. Documentação:
+                  Multi-advertiser Ads na Marketing API.</span
+                >
+              </label>
+            </fieldset>
+
+            <div class="actions card flat">
+              <button type="submit" class="btn primary" id="fb-submit">
+                Criar campanha na Meta
+              </button>
+              <p class="fine muted" id="fb-hint">
+                O token não é armazenado; ele é usado só nesta requisição.
+              </p>
+            </div>
+          </form>
+
+          <pre id="fb-result" class="result" hidden></pre>
+        </section>
+
+        <section id="panel-cadastros" class="panel" hidden>
+          <div class="panel-head">
+            <h2>Cadastros — conta, página e pixel</h2>
+            <p class="muted">
+              Salve IDs e nomes para escolher na página principal sem digitar
+              sempre. Com Supabase configurado, a lista é a mesma para todos que
+              usam este servidor (Render, proxies, etc.).
+            </p>
+            <p id="cadastros-storage-status" class="fine muted" role="status"></p>
+            <p id="cadastros-flash" class="fine cadastros-flash" hidden role="status"></p>
+            <button type="button" class="btn ghost js-back-meta">Voltar à automação</button>
+          </div>
+
+          <div class="cadastros-grid">
+            <article class="card cadastro-block">
+              <h3>Contas de anúncios</h3>
+              <form class="cadastro-form" data-asset-form="ad_account">
+                <label class="field">
+                  <span>Nome</span>
+                  <input name="name" type="text" placeholder="Ex.: Conta MDM BR" required />
+                </label>
+                <label class="field">
+                  <span>ID (act_…)</span>
+                  <input name="external_id" type="text" placeholder="act_123456789" required />
+                </label>
+                <div class="actions-inline">
+                  <button type="submit" class="btn primary">Adicionar</button>
+                  <button type="button" class="btn ghost asset-cancel-edit">Cancelar edição</button>
+                </div>
+              </form>
+              <div class="asset-list" data-asset-list="ad_account"></div>
+            </article>
+
+            <article class="card cadastro-block">
+              <h3>Páginas</h3>
+              <form class="cadastro-form" data-asset-form="page">
+                <label class="field">
+                  <span>Nome</span>
+                  <input name="name" type="text" placeholder="Ex.: Página da marca" required />
+                </label>
+                <label class="field">
+                  <span>ID da página</span>
+                  <input name="external_id" type="text" placeholder="ID numérico" required />
+                </label>
+                <div class="actions-inline">
+                  <button type="submit" class="btn primary">Adicionar</button>
+                  <button type="button" class="btn ghost asset-cancel-edit">Cancelar edição</button>
+                </div>
+              </form>
+              <div class="asset-list" data-asset-list="page"></div>
+            </article>
+
+            <article class="card cadastro-block">
+              <h3>Pixels</h3>
+              <form class="cadastro-form" data-asset-form="pixel">
+                <label class="field">
+                  <span>Nome</span>
+                  <input name="name" type="text" placeholder="Ex.: Pixel loja" required />
+                </label>
+                <label class="field">
+                  <span>ID do pixel</span>
+                  <input name="external_id" type="text" placeholder="ID numérico" required />
+                </label>
+                <div class="actions-inline">
+                  <button type="submit" class="btn primary">Adicionar</button>
+                  <button type="button" class="btn ghost asset-cancel-edit">Cancelar edição</button>
+                </div>
+              </form>
+              <div class="asset-list" data-asset-list="pixel"></div>
+            </article>
+          </div>
+        </section>
+
+      </main>
+
+      <footer class="foot muted fine">
+        MDM — uso interno. Integração via
+        <a
+          href="https://developers.facebook.com/docs/marketing-apis"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Meta Marketing API</a
+        >. Confira permissões e limites da conta.
+      </footer>
+    </div>
+    <script src="/js/app.js" type="module"></script>
+  </body>
+</html>
